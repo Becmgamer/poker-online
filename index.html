@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poker Texas Hold'em Online</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #1a4314; color: white; text-align: center; }
+        .container { max-width: 800px; margin: auto; padding: 20px; }
+        .setup-box { background: rgba(0,0,0,0.5); padding: 20px; border-radius: 10px; }
+        .table { border: 5px solid #8b5a2b; background-color: #2e7d32; border-radius: 150px; height: 300px; margin-top: 30px; position: relative; padding: 20px; }
+        .player-slot { background: #333; padding: 10px; border-radius: 5px; display: inline-block; margin: 10px; min-width: 100px; }
+        select, button, input { padding: 10px; margin: 10px; font-size: 16px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Poker Texas Hold'em</h1>
+        
+        <!-- Tela Inicial de Configuração -->
+        <div id="setup" class="setup-box">
+            <h3>Criar ou Entrar em uma Sala</h3>
+            <input type="text" id="room-id" placeholder="Nome da Sala (Ex: sala123)">
+            <br>
+            <label>Fichas Iniciais:</label>
+            <select id="buy-in">
+                <option value="100">100</option>
+                <option value="200">200</option>
+                <option value="500">500</option>
+                <option value="1000">1000</option>
+            </select>
+            <br>
+            <label>
+                <input type="checkbox" id="use-bots" checked> Incluir Bots na sala
+            </label>
+            <br>
+            <button onclick="connectToRoom()">Entrar na Mesa</button>
+        </div>
+
+        <!-- Tela do Jogo (Mesa) -->
+        <div id="game-room" class="hidden">
+            <h2>Sala: <span id="display-room-id"></span></h2>
+            <div class="table">
+                <h3>Mesa de Poker</h3>
+                <div id="community-cards">Cartas Comunitárias aparecerão aqui</div>
+                <h4>Pote: $<span id="pot-size">0</span></h4>
+            </div>
+            <div id="players-list"></div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        function connectToRoom() {
+            const roomId = document.getElementById('room-id').value;
+            const buyIn = document.getElementById('buy-in').value;
+            const useBots = document.getElementById('use-bots').checked;
+
+            if (!roomId) {
+                alert('Por favor, digite o nome da sala.');
+                return;
+            }
+
+            socket.emit('joinRoom', { roomId, buyIn, useBots });
+
+            document.getElementById('setup').classList.add('hidden');
+            document.getElementById('game-room').classList.remove('hidden');
+            document.getElementById('display-room-id').innerText = roomId;
+        }
+
+        socket.on('roomUpdate', (room) => {
+            const playersList = document.getElementById('players-list');
+            playersList.innerHTML = '';
+            
+            room.players.forEach(player => {
+                const div = document.createElement('div');
+                div.className = 'player-slot';
+                div.innerHTML = `<strong>${player.name}</strong><br>Fichas: $${player.chips} ${player.isBot ? '(BOT)' : ''}`;
+                playersList.appendChild(div);
+            });
+        });
+    </script>
+</body>
+</html>
