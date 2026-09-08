@@ -8,32 +8,31 @@
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f2b11; color: white; text-align: center; margin: 0; padding: 0; }
         .container { max-width: 1000px; margin: auto; padding: 20px; }
         .setup-box { background: #1c4e22; padding: 30px; border-radius: 12px; border: 2px solid #3c8246; display: inline-block; margin-top: 50px; }
-        .table { border: 8px solid #5a3817; background-color: #1b662a; border-radius: 200px; min-height: 350px; margin: 30px auto; position: relative; width: 90%; box-shadow: inset 0 0 50px rgba(0,0,0,0.6); }
-        .community-area { padding-top: 110px; font-size: 24px; }
-        .card { background: white; color: black; padding: 8px 12px; border-radius: 5px; display: inline-block; margin: 5px; font-weight: bold; box-shadow: 2px 2px 5px rgba(0,0,0,0.3); }
+        .table { border: 8px solid #5a3817; background-color: #1b662a; border-radius: 200px; min-height: 220px; margin: 20px auto; position: relative; width: 85%; box-shadow: inset 0 0 50px rgba(0,0,0,0.6); display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .card { background: white; color: black; padding: 10px 14px; border-radius: 6px; display: inline-block; margin: 5px; font-weight: bold; font-size: 20px; box-shadow: 2px 2px 5px rgba(0,0,0,0.3); min-width: 35px; text-align: center; }
         .card.red { color: red; }
-        .players-container { display: flex; justify-content: space-around; flex-wrap: wrap; margin-top: 20px; }
-        .player-slot { background: #222; border: 2px solid #444; padding: 15px; border-radius: 8px; width: 160px; transition: 0.3s; }
-        .player-slot.active-turn { border-color: #ffcc00; box-shadow: 0 0 15px #ffcc00; }
-        .player-slot.folded { opacity: 0.4; }
-        .controls { margin-top: 20px; background: #111; padding: 15px; border-radius: 8px; }
+        .players-container { display: flex; justify-content: space-around; flex-wrap: wrap; margin-top: 20px; gap: 15px; }
+        .player-slot { background: #222; border: 2px solid #444; padding: 15px; border-radius: 8px; width: 180px; transition: 0.3s; position: relative; }
+        .player-slot.active-turn { border-color: #ffcc00; box-shadow: 0 0 15px #ffcc00; background-color: #2d2d2d; }
+        .player-slot.folded { opacity: 0.4; background-color: #111; }
+        .controls { margin-top: 20px; background: #111; padding: 20px; border-radius: 8px; border: 1px solid #333; }
         select, button, input { padding: 12px 20px; margin: 8px; font-size: 16px; border-radius: 6px; border: none; cursor: pointer; }
-        button { background-color: #ff9f1c; color: black; font-weight: bold; }
+        button { background-color: #ff9f1c; color: black; font-weight: bold; transition: 0.2s; }
         button:hover { background-color: #ffbf69; }
-        .btn-action { background-color: #011627; color: white; }
+        .btn-action { background-color: #222; color: white; border: 1px solid #555; }
+        .btn-action:hover { background-color: #444; }
         .hidden { display: none; }
+        .log-box { margin-top: 15px; background: rgba(0,0,0,0.4); padding: 10px; border-radius: 5px; font-size: 14px; color: #aaa; max-height: 60px; overflow-y: auto; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>♣️ Mega Jogos Poker Hold'em ♦️</h1>
         
-        <!-- Tela de Entrada/Criação -->
+        <!-- TELA DE CONFIGURAÇÃO INICIAL -->
         <div id="setup" class="setup-box">
-            <h3>Criar Sala Privada</h3>
-            <input type="text" id="room-id" placeholder="Nome da Sala (Ex: mesa777)">
-            <br>
-            <label>Fichas iniciais do Mega Jogos:</label>
+            <h3>Configurar Nova Partida</h3>
+            <label>Escolha suas Fichas Iniciais:</label>
             <select id="buy-in">
                 <option value="100">$100</option>
                 <option value="200">$200</option>
@@ -41,116 +40,170 @@
                 <option value="1000">$1000</option>
             </select>
             <br>
-            <label><input type="checkbox" id="use-bots" checked> Adicionar Bots Automáticos</label>
-            <br>
-            <button onclick="connectToRoom()">Entrar na Sala</button>
+            <button onclick="initGame()">Criar Sala e Jogar</button>
         </div>
 
-        <!-- Tela do Jogo Ativo -->
+        <!-- MESA DE JOGO ATIVA -->
         <div id="game-room" class="hidden">
-            <h3>Mesa: <span id="display-room-id" style="color: #ffcc00;"></span></h3>
-            <button id="start-btn" onclick="startGame()">Começar Partida</button>
-            
             <div class="table">
-                <div class="community-area">
-                    <div id="pot-display">Pote Geral: $0</div>
-                    <div id="community-cards" style="margin-top: 15px;">Aguardando início...</div>
-                </div>
+                <h3 id="pot-display" style="margin: 5px 0;">Pote Geral: $0</h3>
+                <div style="font-size: 14px; color: #ffcc00; margin-bottom: 5px;">Estágio: <span id="stage-display">Pre-Flop</span></div>
+                <div id="community-cards"></div>
             </div>
 
-            <!-- Painel de Ações do Jogador -->
-            <div id="player-controls" class="controls hidden">
-                <p>Sua vez de jogar! Escolha sua ação:</p>
-                <button class="btn-action" onclick="sendAction('fold')">Correr (Fold)</button>
-                <button class="btn-action" onclick="sendAction('call')">Pagar (Check/Call)</button>
-                <input type="number" id="raise-amount" value="20" style="width: 80px;">
-                <button class="btn-action" onclick="sendAction('raise')">Aumentar (Raise)</button>
+            <!-- PAINEL DE CONTROLE DO JOGADOR HUMANO -->
+            <div id="player-controls" class="controls">
+                <div id="turn-prompt" style="margin-bottom: 10px; font-weight: bold; color: #ffcc00;">Sua vez! Escolha uma ação:</div>
+                <button class="btn-action" onclick="playerAction('fold')">Correr (Fold)</button>
+                <button class="btn-action" id="call-btn" onclick="playerAction('call')">Pagar (Check)</button>
+                <button class="btn-action" onclick="playerAction('raise')">Aumentar (+ $20)</button>
             </div>
 
+            <div id="game-log" class="log-box">Jogo iniciado. Boa sorte!</div>
+
+            <!-- LISTA DE JOGADORES NA MESA -->
             <div id="players-list" class="players-container"></div>
         </div>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
     <script>
-        const socket = io();
-        let currentRoomId = '';
+        // ESTADO GLOBAL DO JOGO
+        let gameState = {
+            buyIn: 100,
+            pot: 0,
+            currentBet: 0,
+            stage: 'preflop', // preflop, flop, turn, river, showdown
+            deck: [],
+            communityCards: [],
+            turnIndex: 0,
+            players: []
+        };
 
-        function connectToRoom() {
-            currentRoomId = document.getElementById('room-id').value;
-            const buyIn = document.getElementById('buy-in').value;
-            const useBots = document.getElementById('use-bots').checked;
+        const suits = ['♠', '♥', '♦', '♣'];
+        const values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 
-            if (!currentRoomId) return alert('Diga o nome da sala!');
+        function logMessage(msg) {
+            const logBox = document.getElementById('game-log');
+            logBox.innerHTML = msg + "<br>" + logBox.innerHTML;
+        }
 
-            socket.emit('joinRoom', { roomId: currentRoomId, buyIn, useBots });
+        // CRIAÇÃO DA SALA E ELEMENTOS
+        function initGame() {
+            const selectValue = parseInt(document.getElementById('buy-in').value);
+            gameState.buyIn = selectValue;
+
+            // Criar Você e 3 Bots
+            gameState.players = [
+                { id: 0, name: "Você (Humano)", chips: selectValue, currentBet: 0, cards: [], folded: false, isBot: false },
+                { id: 1, name: "MegaBot 1", chips: selectValue, currentBet: 0, cards: [], folded: false, isBot: true },
+                { id: 2, name: "MegaBot 2", chips: selectValue, currentBet: 0, cards: [], folded: false, isBot: true },
+                { id: 3, name: "MegaBot 3", chips: selectValue, currentBet: 0, cards: [], folded: false, isBot: true }
+            ];
 
             document.getElementById('setup').classList.add('hidden');
             document.getElementById('game-room').classList.remove('hidden');
-            document.getElementById('display-room-id').innerText = currentRoomId;
+
+            startNewHand();
         }
 
-        function startGame() {
-            socket.emit('startGame', currentRoomId);
-            document.getElementById('start-btn').classList.add('hidden');
-        }
-
-        function sendAction(action) {
-            const amount = document.getElementById('raise-amount').value;
-            socket.emit('playerAction', { roomId: currentRoomId, action, amount });
-        }
-
-        function renderCard(card) {
-            const isRed = card.suit === '♥' || card.suit === '♦';
-            return `<span class="card ${isRed ? 'red' : ''}">${card.value}${card.suit}</span>`;
-        }
-
-        socket.on('roomUpdate', (room) => {
-            document.getElementById('pot-display').innerText = `Pote Geral: $${room.pot}`;
-            
-            // Renderiza cartas comunitárias na mesa
-            const communityDiv = document.getElementById('community-cards');
-            if (room.communityCards.length === 0) {
-                communityDiv.innerHTML = "<em>Nenhuma carta na mesa ainda.</em>";
-            } else {
-                communityDiv.innerHTML = room.communityCards.map(renderCard).join('');
-            }
-
-            // Lista de jogadores instalados na sala
-            const playersList = document.getElementById('players-list');
-            playersList.innerHTML = '';
-            
-            const activePlayer = room.players[room.turnIndex];
-            
-            // Mostra o painel se for o seu turno de verdade
-            if (activePlayer && activePlayer.id === socket.id && room.gameStage !== 'waiting') {
-                document.getElementById('player-controls').classList.remove('hidden');
-            } else {
-                document.getElementById('player-controls').classList.add('hidden');
-            }
-
-            room.players.forEach((player, index) => {
-                const isHisTurn = index === room.turnIndex && room.gameStage !== 'waiting';
-                const div = document.createElement('div');
-                div.className = `player-slot ${isHisTurn ? 'active-turn' : ''} ${player.folded ? 'folded' : ''}`;
-                
-                // Mostra as cartas apenas se for o próprio jogador logado
-                let cardsHtml = '';
-                if (player.id === socket.id && player.cards && player.cards.length > 0) {
-                    cardsHtml = `<br><div style="margin-top:5px;">${player.cards.map(renderCard).join('')}</div>`;
-                } else if (player.cards && player.cards.length > 0 && !player.folded) {
-                    cardsHtml = '<br><span class="card" style="background:#444; color:white;">     </span>';
+        // COMEÇAR UMA NOVA MÃO DE CARTAS
+        function startNewHand() {
+            gameState.deck = [];
+            for (let suit of suits) {
+                for (let value of values) {
+                    gameState.deck.push({ value, suit });
                 }
+            }
+            // Embaralhar
+            gameState.deck.sort(() => Math.random() - 0.5);
 
-                div.innerHTML = `
-                    <strong>${player.name}</strong><br>
-                    Fichas: $${player.chips}<br>
-                    <small>Aposta: $${player.currentBet}</small>
-                    ${cardsHtml}
-                `;
-                playersList.appendChild(div);
+            gameState.pot = 0;
+            gameState.currentBet = 10; // Blind inicial padrão do Mega Jogos
+            gameState.stage = 'preflop';
+            gameState.communityCards = [];
+            gameState.turnIndex = 0; // Humano começa agindo
+
+            gameState.players.forEach(p => {
+                p.cards = [gameState.deck.pop(), gameState.deck.pop()];
+                p.folded = p.chips <= 0; // Se faliu, já entra fora
+                p.currentBet = (p.folded) ? 0 : 10;
+                p.chips = Math.max(0, p.chips - 10);
+                gameState.pot += p.currentBet;
             });
-        });
-    </script>
-</body>
-</html>
+
+            logMessage("--- Nova mão distribuída! Blind cobrado: $10 ---");
+            updateUI();
+        }
+
+        // LÓGICA DE AÇÃO DO JOGADOR HUMANO
+        function playerAction(action) {
+            if (gameState.turnIndex !== 0 || gameState.stage === 'showdown') return;
+
+            processAction(0, action);
+        }
+
+        // PROCESSA MÃO/AÇÃO INDEPENDENTE DE QUEM SEJA (HUMANO OU BOT)
+        function processAction(playerId, action) {
+            let p = gameState.players[playerId];
+            
+            if (action === 'fold') {
+                p.folded = true;
+                logMessage(`${p.name} Correu (Fold).`);
+            } else if (action === 'call') {
+                let diff = gameState.currentBet - p.currentBet;
+                if (diff > p.chips) diff = p.chips;
+                p.chips -= diff;
+                p.currentBet += diff;
+                gameState.pot += diff;
+                logMessage(`${p.name} Pagou o valor da mesa.`);
+            } else if (action === 'raise') {
+                let raiseAmount = 20; 
+                let totalNeeded = (gameState.currentBet + raiseAmount) - p.currentBet;
+                if (totalNeeded > p.chips) totalNeeded = p.chips;
+                p.chips -= totalNeeded;
+                p.currentBet += totalNeeded;
+                gameState.currentBet = p.currentBet;
+                gameState.pot += totalNeeded;
+                logMessage(`${p.name} Aumentou a aposta para $${gameState.currentBet}!`);
+            }
+
+            nextTurn();
+        }
+
+        // PASSA O TURNO PARA O PRÓXIMO DA MESA
+        function nextTurn() {
+            // Verifica se só sobrou um jogador ativo na rodada
+            let actives = gameState.players.filter(p => !p.folded);
+            if (actives.length === 1) {
+                logMessage(`Todos correram! ${actives[0].name} ganha o pote de $${gameState.pot}!`);
+                actives[0].chips += gameState.pot;
+                setTimeout(startNewHand, 4000);
+                gameState.stage = 'showdown';
+                updateUI();
+                return;
+            }
+
+            gameState.turnIndex = (gameState.turnIndex + 1) % gameState.players.length;
+
+            // Pula jogadores que deram fold
+            while (gameState.players[gameState.turnIndex].folded) {
+                gameState.turnIndex = (gameState.turnIndex + 1) % gameState.players.length;
+            }
+
+            // Se a rodada deu a volta completa e retornou ao jogador humano (Índice 0), avançamos o estágio da mesa
+            if (gameState.turnIndex === 0) {
+                advanceStage();
+            } else {
+                updateUI();
+                // Se o próximo turno for um BOT, executa a IA dele com um pequeno atraso
+                if (gameState.players[gameState.turnIndex].isBot) {
+                    setTimeout(botDecision, 1200);
+                }
+            }
+        }
+
+        // INTELIGÊNCIA ARTIFICIAL DOS BOTS (MEGA JOGOS STYLE)
+        function botDecision() {
+            let bot = gameState.players[gameState.turnIndex];
+            
+            // Lógica simples: Se a aposta da mesa for muito alta, ele corre. Se não, paga ou aumenta aleatoriamente.
