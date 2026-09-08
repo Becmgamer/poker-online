@@ -3,82 +3,151 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Poker Texas Hold'em Online</title>
+    <title>Mega Jogos - Poker Texas Hold'em</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #1a4314; color: white; text-align: center; }
-        .container { max-width: 800px; margin: auto; padding: 20px; }
-        .setup-box { background: rgba(0,0,0,0.5); padding: 20px; border-radius: 10px; }
-        .table { border: 5px solid #8b5a2b; background-color: #2e7d32; border-radius: 150px; height: 300px; margin-top: 30px; position: relative; padding: 20px; }
-        .player-slot { background: #333; padding: 10px; border-radius: 5px; display: inline-block; margin: 10px; min-width: 100px; }
-        select, button, input { padding: 10px; margin: 10px; font-size: 16px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f2b11; color: white; text-align: center; margin: 0; padding: 0; }
+        .container { max-width: 1000px; margin: auto; padding: 20px; }
+        .setup-box { background: #1c4e22; padding: 30px; border-radius: 12px; border: 2px solid #3c8246; display: inline-block; margin-top: 50px; }
+        .table { border: 8px solid #5a3817; background-color: #1b662a; border-radius: 200px; min-height: 350px; margin: 30px auto; position: relative; width: 90%; box-shadow: inset 0 0 50px rgba(0,0,0,0.6); }
+        .community-area { padding-top: 110px; font-size: 24px; }
+        .card { background: white; color: black; padding: 8px 12px; border-radius: 5px; display: inline-block; margin: 5px; font-weight: bold; box-shadow: 2px 2px 5px rgba(0,0,0,0.3); }
+        .card.red { color: red; }
+        .players-container { display: flex; justify-content: space-around; flex-wrap: wrap; margin-top: 20px; }
+        .player-slot { background: #222; border: 2px solid #444; padding: 15px; border-radius: 8px; width: 160px; transition: 0.3s; }
+        .player-slot.active-turn { border-color: #ffcc00; box-shadow: 0 0 15px #ffcc00; }
+        .player-slot.folded { opacity: 0.4; }
+        .controls { margin-top: 20px; background: #111; padding: 15px; border-radius: 8px; }
+        select, button, input { padding: 12px 20px; margin: 8px; font-size: 16px; border-radius: 6px; border: none; cursor: pointer; }
+        button { background-color: #ff9f1c; color: black; font-weight: bold; }
+        button:hover { background-color: #ffbf69; }
+        .btn-action { background-color: #011627; color: white; }
         .hidden { display: none; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Poker Texas Hold'em</h1>
+        <h1>♣️ Mega Jogos Poker Hold'em ♦️</h1>
         
-        <!-- Tela Inicial de Configuração -->
+        <!-- Tela de Entrada/Criação -->
         <div id="setup" class="setup-box">
-            <h3>Criar ou Entrar em uma Sala</h3>
-            <input type="text" id="room-id" placeholder="Nome da Sala (Ex: sala123)">
+            <h3>Criar Sala Privada</h3>
+            <input type="text" id="room-id" placeholder="Nome da Sala (Ex: mesa777)">
             <br>
-            <label>Fichas Iniciais:</label>
+            <label>Fichas iniciais do Mega Jogos:</label>
             <select id="buy-in">
-                <option value="100">100</option>
-                <option value="200">200</option>
-                <option value="500">500</option>
-                <option value="1000">1000</option>
+                <option value="100">$100</option>
+                <option value="200">$200</option>
+                <option value="500">$500</option>
+                <option value="1000">$1000</option>
             </select>
             <br>
-            <label>
-                <input type="checkbox" id="use-bots" checked> Incluir Bots na sala
-            </label>
+            <label><input type="checkbox" id="use-bots" checked> Adicionar Bots Automáticos</label>
             <br>
-            <button onclick="connectToRoom()">Entrar na Mesa</button>
+            <button onclick="connectToRoom()">Entrar na Sala</button>
         </div>
 
-        <!-- Tela do Jogo (Mesa) -->
+        <!-- Tela do Jogo Ativo -->
         <div id="game-room" class="hidden">
-            <h2>Sala: <span id="display-room-id"></span></h2>
+            <h3>Mesa: <span id="display-room-id" style="color: #ffcc00;"></span></h3>
+            <button id="start-btn" onclick="startGame()">Começar Partida</button>
+            
             <div class="table">
-                <h3>Mesa de Poker</h3>
-                <div id="community-cards">Cartas Comunitárias aparecerão aqui</div>
-                <h4>Pote: $<span id="pot-size">0</span></h4>
+                <div class="community-area">
+                    <div id="pot-display">Pote Geral: $0</div>
+                    <div id="community-cards" style="margin-top: 15px;">Aguardando início...</div>
+                </div>
             </div>
-            <div id="players-list"></div>
+
+            <!-- Painel de Ações do Jogador -->
+            <div id="player-controls" class="controls hidden">
+                <p>Sua vez de jogar! Escolha sua ação:</p>
+                <button class="btn-action" onclick="sendAction('fold')">Correr (Fold)</button>
+                <button class="btn-action" onclick="sendAction('call')">Pagar (Check/Call)</button>
+                <input type="number" id="raise-amount" value="20" style="width: 80px;">
+                <button class="btn-action" onclick="sendAction('raise')">Aumentar (Raise)</button>
+            </div>
+
+            <div id="players-list" class="players-container"></div>
         </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
+        let currentRoomId = '';
 
         function connectToRoom() {
-            const roomId = document.getElementById('room-id').value;
+            currentRoomId = document.getElementById('room-id').value;
             const buyIn = document.getElementById('buy-in').value;
             const useBots = document.getElementById('use-bots').checked;
 
-            if (!roomId) {
-                alert('Por favor, digite o nome da sala.');
-                return;
-            }
+            if (!currentRoomId) return alert('Diga o nome da sala!');
 
-            socket.emit('joinRoom', { roomId, buyIn, useBots });
+            socket.emit('joinRoom', { roomId: currentRoomId, buyIn, useBots });
 
             document.getElementById('setup').classList.add('hidden');
             document.getElementById('game-room').classList.remove('hidden');
-            document.getElementById('display-room-id').innerText = roomId;
+            document.getElementById('display-room-id').innerText = currentRoomId;
+        }
+
+        function startGame() {
+            socket.emit('startGame', currentRoomId);
+            document.getElementById('start-btn').classList.add('hidden');
+        }
+
+        function sendAction(action) {
+            const amount = document.getElementById('raise-amount').value;
+            socket.emit('playerAction', { roomId: currentRoomId, action, amount });
+        }
+
+        function renderCard(card) {
+            const isRed = card.suit === '♥' || card.suit === '♦';
+            return `<span class="card ${isRed ? 'red' : ''}">${card.value}${card.suit}</span>`;
         }
 
         socket.on('roomUpdate', (room) => {
+            document.getElementById('pot-display').innerText = `Pote Geral: $${room.pot}`;
+            
+            // Renderiza cartas comunitárias na mesa
+            const communityDiv = document.getElementById('community-cards');
+            if (room.communityCards.length === 0) {
+                communityDiv.innerHTML = "<em>Nenhuma carta na mesa ainda.</em>";
+            } else {
+                communityDiv.innerHTML = room.communityCards.map(renderCard).join('');
+            }
+
+            // Lista de jogadores instalados na sala
             const playersList = document.getElementById('players-list');
             playersList.innerHTML = '';
             
-            room.players.forEach(player => {
+            const activePlayer = room.players[room.turnIndex];
+            
+            // Mostra o painel se for o seu turno de verdade
+            if (activePlayer && activePlayer.id === socket.id && room.gameStage !== 'waiting') {
+                document.getElementById('player-controls').classList.remove('hidden');
+            } else {
+                document.getElementById('player-controls').classList.add('hidden');
+            }
+
+            room.players.forEach((player, index) => {
+                const isHisTurn = index === room.turnIndex && room.gameStage !== 'waiting';
                 const div = document.createElement('div');
-                div.className = 'player-slot';
-                div.innerHTML = `<strong>${player.name}</strong><br>Fichas: $${player.chips} ${player.isBot ? '(BOT)' : ''}`;
+                div.className = `player-slot ${isHisTurn ? 'active-turn' : ''} ${player.folded ? 'folded' : ''}`;
+                
+                // Mostra as cartas apenas se for o próprio jogador logado
+                let cardsHtml = '';
+                if (player.id === socket.id && player.cards && player.cards.length > 0) {
+                    cardsHtml = `<br><div style="margin-top:5px;">${player.cards.map(renderCard).join('')}</div>`;
+                } else if (player.cards && player.cards.length > 0 && !player.folded) {
+                    cardsHtml = '<br><span class="card" style="background:#444; color:white;">     </span>';
+                }
+
+                div.innerHTML = `
+                    <strong>${player.name}</strong><br>
+                    Fichas: $${player.chips}<br>
+                    <small>Aposta: $${player.currentBet}</small>
+                    ${cardsHtml}
+                `;
                 playersList.appendChild(div);
             });
         });
